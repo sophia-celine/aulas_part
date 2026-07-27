@@ -16,6 +16,9 @@
             --text-light: #6B7280;
             --border: #E5E7EB;
         }
+        * {
+            box-sizing: border-box;
+        }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background-color: var(--bg);
@@ -25,6 +28,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+            overflow-x: hidden;
         }
         h1 {
             color: var(--primary);
@@ -70,8 +74,10 @@
         .tab-content {
             display: none;
             padding: 20px;
-            grid-template-columns: 350px 1fr;
+            grid-template-columns: minmax(280px, 350px) minmax(0, 1fr);
             gap: 20px;
+            width: 100%;
+            min-width: 0;
         }
         .tab-content.active {
             display: grid;
@@ -82,6 +88,7 @@
             padding: 20px;
             border-radius: 8px;
             border: 1px solid var(--border);
+            min-width: 0;
         }
         .control-group {
             margin-bottom: 15px;
@@ -142,6 +149,7 @@
             display: flex;
             flex-direction: column;
             width: 100%;
+            min-width: 0; /* Prevents flexbox overflow */
         }
         .dynamic-eq {
             text-align: center;
@@ -163,7 +171,26 @@
         hr { border: 0; border-top: 1px solid var(--border); margin: 20px 0; }
         
         @media (max-width: 768px) {
-            .tab-content.active { grid-template-columns: 1fr; }
+            body {
+                padding: 12px;
+            }
+            .container {
+                max-width: 100%;
+            }
+            .tab-content.active {
+                grid-template-columns: 1fr;
+                padding: 12px;
+            }
+            .calc-inputs {
+                flex-direction: column;
+                align-items: stretch;
+            }
+            .calc-inputs div:nth-child(2) {
+                margin: 8px 0;
+            }
+            .graph-container {
+                height: 360px;
+            }
         }
     </style>
 </head>
@@ -417,18 +444,41 @@
         }
 
         // --- UI Logic ---
+        let currentTab = 'linear';
+
+        function resizeActiveGraph(tabId) {
+            const graphIds = {
+                linear: 'graph-linear',
+                quadratic: 'graph-quadratic',
+                exponential: 'graph-exponential',
+                logarithmic: 'graph-logarithmic',
+                modular: 'graph-modular'
+            };
+
+            const graphId = graphIds[tabId];
+            if (graphId && typeof Plotly !== 'undefined') {
+                Plotly.Plots.resize(graphId);
+            }
+        }
+
         function switchTab(tabId, event) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
             document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
             document.getElementById(tabId).classList.add('active');
             if(event) event.currentTarget.classList.add('active');
-            
-            // Relayout graphs
+
+            currentTab = tabId;
+
+            // Re-render and relayout the graph after the tab becomes visible
             if(tabId === 'linear') updateLinear();
             if(tabId === 'quadratic') updateQuadratic();
             if(tabId === 'exponential') updateExponential();
             if(tabId === 'logarithmic') updateLogarithmic();
             if(tabId === 'modular') updateModular();
+
+            requestAnimationFrame(() => {
+                setTimeout(() => resizeActiveGraph(tabId), 50);
+            });
         }
 
         const layoutConfig = {
@@ -454,7 +504,6 @@
             let a = parseFloat(document.getElementById('lin-a').value);
             let b = parseFloat(document.getElementById('lin-b').value);
 
-            // Update Dynamic Equation
             let bStr = b === 0 ? "" : (b < 0 ? `- ${Math.abs(b)}` : `+ ${b}`);
             document.getElementById('lin-eq').innerHTML = `f(x) = ${a}x ${bStr}`;
 
@@ -468,7 +517,7 @@
 
             let data = generateData(x => a * x + b);
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#4F46E5', width: 3} };
-            Plotly.newPlot('graph-linear', [trace], layoutConfig);
+            Plotly.newPlot('graph-linear', [trace], layoutConfig, {responsive: true});
             calcLinearY();
         }
 
@@ -496,7 +545,6 @@
 
             if (a === 0) a = 0.0001; 
 
-            // Update Dynamic Equation
             let bStr = b === 0 ? "" : (b < 0 ? `- ${Math.abs(b)}x` : `+ ${b}x`);
             let cStr = c === 0 ? "" : (c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`);
             document.getElementById('quad-eq').innerHTML = `f(x) = ${a}x² ${bStr} ${cStr}`;
@@ -519,7 +567,7 @@
 
             let data = generateData(x => a * x * x + b * x + c, [vx - 10, vx + 10]); 
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#10B981', width: 3} };
-            Plotly.newPlot('graph-quadratic', [trace], layoutConfig);
+            Plotly.newPlot('graph-quadratic', [trace], layoutConfig, {responsive: true});
             calcQuadY();
         }
 
@@ -565,7 +613,6 @@
             let b = parseFloat(document.getElementById('exp-b').value);
             if (b <= 0) b = 0.001; 
 
-            // Update Dynamic Equation
             document.getElementById('exp-eq').innerHTML = `f(x) = ${a} · ${b}<sup>x</sup>`;
 
             document.getElementById('exp-y-int').innerText = `Y-Intercept: (0, ${a})`;
@@ -576,7 +623,7 @@
 
             let data = generateData(x => a * Math.pow(b, x), [-5, 5]); 
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#F59E0B', width: 3} };
-            Plotly.newPlot('graph-exponential', [trace], layoutConfig);
+            Plotly.newPlot('graph-exponential', [trace], layoutConfig, {responsive: true});
             calcExpY();
         }
 
@@ -611,9 +658,8 @@
             let b = parseFloat(document.getElementById('log-b').value);
             let c = parseFloat(document.getElementById('log-c').value);
 
-            if (b <= 0 || b === 1) b = 2; // Default to log2 if invalid base
+            if (b <= 0 || b === 1) b = 2;
 
-            // Update Dynamic Equation
             let cStr = c === 0 ? "" : (c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`);
             document.getElementById('log-eq').innerHTML = `f(x) = ${a} · log<sub>${b}</sub>(x) ${cStr}`;
 
@@ -626,7 +672,7 @@
 
             let data = generateData(x => a * (Math.log(x) / Math.log(b)) + c, [0.01, 20], 300);
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#8B5CF6', width: 3} };
-            Plotly.newPlot('graph-logarithmic', [trace], layoutConfig);
+            Plotly.newPlot('graph-logarithmic', [trace], layoutConfig, {responsive: true});
             calcLogY();
         }
 
@@ -673,7 +719,6 @@
             let h = parseFloat(document.getElementById('mod-h').value);
             let k = parseFloat(document.getElementById('mod-k').value);
 
-            // Update Dynamic Equation
             let hStr = h === 0 ? "" : (h < 0 ? `+ ${Math.abs(h)}` : `- ${h}`);
             let kStr = k === 0 ? "" : (k < 0 ? `- ${Math.abs(k)}` : `+ ${k}`);
             document.getElementById('mod-eq').innerHTML = `f(x) = ${a}|x ${hStr}| ${kStr}`;
@@ -697,7 +742,7 @@
 
             let data = generateData(x => a * Math.abs(x - h) + k, [h - 10, h + 10]); 
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#EC4899', width: 3} };
-            Plotly.newPlot('graph-modular', [trace], layoutConfig);
+            Plotly.newPlot('graph-modular', [trace], layoutConfig, {responsive: true});
             calcModY();
         }
 
@@ -738,13 +783,10 @@
             }
         }
 
-        // Initialize graphs on load
+        // Initialize the active graph on load and keep all tabs responsive on resize
         window.onload = () => {
             updateLinear();
-            updateQuadratic();
-            updateExponential();
-            updateLogarithmic();
-            updateModular();
+            window.addEventListener('resize', () => resizeActiveGraph(currentTab));
         };
     </script>
 </body>
