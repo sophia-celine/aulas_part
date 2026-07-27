@@ -44,7 +44,7 @@
             display: flex;
             background-color: #f3f4f6;
             border-bottom: 1px solid var(--border);
-            flex-wrap: wrap; /* Allows tabs to wrap on smaller screens */
+            flex-wrap: wrap;
         }
         .tab-button {
             flex: 1;
@@ -115,7 +115,6 @@
             padding-top: 20px;
             border-top: 2px dashed var(--border);
         }
-        /* Updated Calc Inputs to prevent overflow */
         .calc-inputs {
             display: flex;
             gap: 10px;
@@ -136,6 +135,24 @@
             border-radius: 6px;
             font-size: 16px;
             box-sizing: border-box; 
+        }
+        
+        /* Graph Layout Elements */
+        .graph-wrapper {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+        }
+        .dynamic-eq {
+            text-align: center;
+            color: var(--text);
+            margin: 0 0 15px 0;
+            font-size: 24px;
+            font-weight: 600;
+            padding: 10px;
+            background: #f3f4f6;
+            border-radius: 8px;
+            border: 1px solid var(--border);
         }
         .graph-container {
             width: 100%;
@@ -198,7 +215,10 @@
                     </div>
                 </div>
             </div>
-            <div id="graph-linear" class="graph-container"></div>
+            <div class="graph-wrapper">
+                <div id="lin-eq" class="dynamic-eq"></div>
+                <div id="graph-linear" class="graph-container"></div>
+            </div>
         </div>
 
         <!-- QUADRATIC TAB -->
@@ -242,13 +262,16 @@
                     </div>
                 </div>
             </div>
-            <div id="graph-quadratic" class="graph-container"></div>
+            <div class="graph-wrapper">
+                <div id="quad-eq" class="dynamic-eq"></div>
+                <div id="graph-quadratic" class="graph-container"></div>
+            </div>
         </div>
 
         <!-- EXPONENTIAL TAB -->
         <div id="exponential" class="tab-content">
             <div class="controls">
-                <h2>f(x) = a · bˣ</h2>
+                <h2>f(x) = a · b<sup>x</sup></h2>
                 <p style="font-size: 13px; color: #666;">(Note: Base 'b' must be > 0)</p>
                 <div class="control-group">
                     <label>Initial Value (a):</label>
@@ -283,13 +306,16 @@
                     </div>
                 </div>
             </div>
-            <div id="graph-exponential" class="graph-container"></div>
+            <div class="graph-wrapper">
+                <div id="exp-eq" class="dynamic-eq"></div>
+                <div id="graph-exponential" class="graph-container"></div>
+            </div>
         </div>
 
         <!-- LOGARITHMIC TAB -->
         <div id="logarithmic" class="tab-content">
             <div class="controls">
-                <h2>f(x) = a · log<sub>b</sub>x + c</h2>
+                <h2>f(x) = a · log<sub>b</sub>(x) + c</h2>
                 <p style="font-size: 13px; color: #666;">(Note: Base 'b' must be > 0 and ≠ 1, x must be > 0)</p>
                 <div class="control-group">
                     <label>Multiplier (a):</label>
@@ -328,7 +354,10 @@
                     </div>
                 </div>
             </div>
-            <div id="graph-logarithmic" class="graph-container"></div>
+            <div class="graph-wrapper">
+                <div id="log-eq" class="dynamic-eq"></div>
+                <div id="graph-logarithmic" class="graph-container"></div>
+            </div>
         </div>
 
         <!-- MODULAR (ABSOLUTE VALUE) TAB -->
@@ -372,11 +401,21 @@
                     </div>
                 </div>
             </div>
-            <div id="graph-modular" class="graph-container"></div>
+            <div class="graph-wrapper">
+                <div id="mod-eq" class="dynamic-eq"></div>
+                <div id="graph-modular" class="graph-container"></div>
+            </div>
         </div>
     </div>
 
     <script>
+        // --- Formatting Helper ---
+        function formatSign(val, isFirst = false) {
+            if (val === 0 && !isFirst) return "";
+            if (isFirst) return val.toString();
+            return val < 0 ? `- ${Math.abs(val)}` : `+ ${val}`;
+        }
+
         // --- UI Logic ---
         function switchTab(tabId, event) {
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
@@ -392,7 +431,6 @@
             if(tabId === 'modular') updateModular();
         }
 
-        // --- Helper Function for Plotting ---
         const layoutConfig = {
             margin: { t: 30, b: 30, l: 40, r: 20 },
             xaxis: { title: 'X-Axis', zeroline: true, zerolinewidth: 2, zerolinecolor: '#000', gridcolor: '#e5e7eb' },
@@ -415,6 +453,10 @@
         function updateLinear() {
             let a = parseFloat(document.getElementById('lin-a').value);
             let b = parseFloat(document.getElementById('lin-b').value);
+
+            // Update Dynamic Equation
+            let bStr = b === 0 ? "" : (b < 0 ? `- ${Math.abs(b)}` : `+ ${b}`);
+            document.getElementById('lin-eq').innerHTML = `f(x) = ${a}x ${bStr}`;
 
             document.getElementById('lin-y-int').innerText = `Y-Intercept: (0, ${b})`;
             if (a === 0) {
@@ -453,6 +495,11 @@
             let c = parseFloat(document.getElementById('quad-c').value);
 
             if (a === 0) a = 0.0001; 
+
+            // Update Dynamic Equation
+            let bStr = b === 0 ? "" : (b < 0 ? `- ${Math.abs(b)}x` : `+ ${b}x`);
+            let cStr = c === 0 ? "" : (c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`);
+            document.getElementById('quad-eq').innerHTML = `f(x) = ${a}x² ${bStr} ${cStr}`;
 
             document.getElementById('quad-y-int').innerText = `Y-Intercept: (0, ${c})`;
             let vx = -b / (2 * a);
@@ -518,6 +565,9 @@
             let b = parseFloat(document.getElementById('exp-b').value);
             if (b <= 0) b = 0.001; 
 
+            // Update Dynamic Equation
+            document.getElementById('exp-eq').innerHTML = `f(x) = ${a} · ${b}<sup>x</sup>`;
+
             document.getElementById('exp-y-int').innerText = `Y-Intercept: (0, ${a})`;
             document.getElementById('exp-asymptote').innerText = `Horizontal Asymptote: y = 0`;
             
@@ -563,15 +613,17 @@
 
             if (b <= 0 || b === 1) b = 2; // Default to log2 if invalid base
 
+            // Update Dynamic Equation
+            let cStr = c === 0 ? "" : (c < 0 ? `- ${Math.abs(c)}` : `+ ${c}`);
+            document.getElementById('log-eq').innerHTML = `f(x) = ${a} · log<sub>${b}</sub>(x) ${cStr}`;
+
             if(a !== 0) {
-                // Solve a * log_b(x) + c = 0 => log_b(x) = -c/a => x = b^(-c/a)
                 let xInt = Math.pow(b, -c/a);
                 document.getElementById('log-x-int').innerText = `X-Intercept: (${xInt.toFixed(3)}, 0)`;
             } else {
                 document.getElementById('log-x-int').innerText = "X-Intercept: None";
             }
 
-            // Generate values strictly greater than 0
             let data = generateData(x => a * (Math.log(x) / Math.log(b)) + c, [0.01, 20], 300);
             let trace = { x: data.x, y: data.y, type: 'scatter', mode: 'lines', line: {color: '#8B5CF6', width: 3} };
             Plotly.newPlot('graph-logarithmic', [trace], layoutConfig);
@@ -605,7 +657,6 @@
 
             if(!isNaN(y)) {
                 if (a !== 0 && b > 0 && b !== 1) {
-                    // y = a * log_b(x) + c => x = b ^ ((y - c) / a)
                     let p = (y - c) / a;
                     document.getElementById('log-calc-x').value = +(Math.pow(b, p)).toFixed(4);
                     resBox.innerText = "";
@@ -621,6 +672,11 @@
             let a = parseFloat(document.getElementById('mod-a').value);
             let h = parseFloat(document.getElementById('mod-h').value);
             let k = parseFloat(document.getElementById('mod-k').value);
+
+            // Update Dynamic Equation
+            let hStr = h === 0 ? "" : (h < 0 ? `+ ${Math.abs(h)}` : `- ${h}`);
+            let kStr = k === 0 ? "" : (k < 0 ? `- ${Math.abs(k)}` : `+ ${k}`);
+            document.getElementById('mod-eq').innerHTML = `f(x) = ${a}|x ${hStr}| ${kStr}`;
 
             document.getElementById('mod-vertex').innerText = `Vertex: (${h}, ${k})`;
             let yInt = a * Math.abs(0 - h) + k;
